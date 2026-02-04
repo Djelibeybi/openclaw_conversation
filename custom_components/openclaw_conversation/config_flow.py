@@ -108,6 +108,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         f"{base_url}/v1/models",
         headers={
             "Authorization": f"Bearer {api_key}",
+            "x-openclaw-agent-id": DEFAULT_AGENT_ID,
         },
         timeout=10.0,
     )
