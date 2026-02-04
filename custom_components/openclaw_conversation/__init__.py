@@ -14,7 +14,13 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CONF_OPENCLAW_URL, CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL, DOMAIN
+from .const import (
+    CONF_OPENCLAW_URL,
+    CONF_VERIFY_SSL,
+    DEFAULT_AGENT_ID,
+    DEFAULT_VERIFY_SSL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +49,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenClawConfigEntry) -> 
         # Test connectivity with a simple request
         response = await client.get(
             f"{base_url}/v1/models",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "x-openclaw-agent-id": DEFAULT_AGENT_ID,
+            },
             timeout=10.0,
         )
         response.raise_for_status()
