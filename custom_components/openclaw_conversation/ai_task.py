@@ -45,9 +45,7 @@ class OpenClawTaskEntity(
 ):
     """OpenClaw AI Task entity."""
 
-    def __init__(
-        self, entry: OpenClawConfigEntry, subentry: ConfigSubentry
-    ) -> None:
+    def __init__(self, entry: OpenClawConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialize the entity."""
         super().__init__(entry, subentry)
         self._attr_supported_features = (

@@ -36,11 +36,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenClawConfigEntry) -> 
     api_key = entry.data[CONF_API_KEY]
     verify_ssl = entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
 
-    # Use HA's client if SSL is verified, otherwise create our own
-    if verify_ssl:
-        client = get_async_client(hass)
-    else:
-        client = httpx.AsyncClient(verify=False)
+    # Use Home Assistant's httpx client helper to avoid blocking I/O during SSL setup
+    client = get_async_client(hass, verify_ssl=verify_ssl)
 
     try:
         # Test connectivity with a simple request
@@ -57,10 +54,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenClawConfigEntry) -> 
         raise ConfigEntryNotReady(f"Failed to connect to OpenClaw: {err}") from err
     except httpx.RequestError as err:
         raise ConfigEntryNotReady(f"Failed to connect to OpenClaw: {err}") from err
-    finally:
-        # Close the client if we created it ourselves
-        if not verify_ssl:
-            await client.aclose()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))

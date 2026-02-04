@@ -107,9 +107,7 @@ class OpenClawBaseLLMEntity(Entity):
     _attr_has_entity_name = True
     _attr_name = None
 
-    def __init__(
-        self, entry: OpenClawConfigEntry, subentry: ConfigSubentry
-    ) -> None:
+    def __init__(self, entry: OpenClawConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialize the entity."""
         self.entry = entry
         self.subentry = subentry
@@ -125,17 +123,10 @@ class OpenClawBaseLLMEntity(Entity):
     def _get_httpx_client(self) -> httpx.AsyncClient:
         """Return an httpx client for API requests.
 
-        Returns Home Assistant's shared client when SSL verification is enabled,
-        or creates a new client with verify=False when self-signed certs are allowed.
+        Uses Home Assistant's helper to avoid blocking I/O during SSL setup.
         """
         verify_ssl = self.entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
-        if verify_ssl:
-            return get_async_client(self.hass)
-        return httpx.AsyncClient(verify=False)
-
-    def _should_close_client(self) -> bool:
-        """Return True if the client should be closed after use."""
-        return not self.entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
+        return get_async_client(self.hass, verify_ssl=verify_ssl)
 
     def _get_headers(self) -> dict[str, str]:
         """Build headers for OpenClaw API requests."""
@@ -198,28 +189,24 @@ class OpenClawBaseLLMEntity(Entity):
 
         # Make streaming request to OpenClaw
         client = self._get_httpx_client()
-        should_close = self._should_close_client()
         api_url = self._get_api_url()
         headers = self._get_headers()
 
-        try:
-            async with client.stream(
-                "POST",
-                api_url,
-                headers=headers,
-                json=request_body,
-                timeout=60.0,
-            ) as response:
-                response.raise_for_status()
+        # Note: We use HA's shared client, so we don't close it
+        async with client.stream(
+            "POST",
+            api_url,
+            headers=headers,
+            json=request_body,
+            timeout=60.0,
+        ) as response:
+            response.raise_for_status()
 
-                # Process stream
-                async for _ in chat_log.async_add_delta_content_stream(
-                    self.entity_id, self._transform_stream(chat_log, response)
-                ):
-                    pass
-        finally:
-            if should_close:
-                await client.aclose()
+            # Process stream
+            async for _ in chat_log.async_add_delta_content_stream(
+                self.entity_id, self._transform_stream(chat_log, response)
+            ):
+                pass
 
     async def _transform_stream(
         self,

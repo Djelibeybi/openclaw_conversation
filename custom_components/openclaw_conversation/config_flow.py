@@ -20,6 +20,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
@@ -99,16 +100,18 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     api_key = data[CONF_API_KEY]
     verify_ssl = data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
 
+    # Use Home Assistant's httpx client helper to avoid blocking I/O during SSL setup
+    client = get_async_client(hass, verify_ssl=verify_ssl)
+
     # Test connectivity by calling the /v1/models endpoint
-    async with httpx.AsyncClient(verify=verify_ssl) as client:
-        response = await client.get(
-            f"{base_url}/v1/models",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-            },
-            timeout=10.0,
-        )
-        response.raise_for_status()
+    response = await client.get(
+        f"{base_url}/v1/models",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+        },
+        timeout=10.0,
+    )
+    response.raise_for_status()
 
 
 class OpenClawConversationConfigFlow(ConfigFlow, domain=DOMAIN):
