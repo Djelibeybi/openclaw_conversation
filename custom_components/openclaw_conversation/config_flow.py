@@ -103,16 +103,22 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     # Use Home Assistant's httpx client helper to avoid blocking I/O during SSL setup
     client = get_async_client(hass, verify_ssl=verify_ssl)
 
-    # Test connectivity by calling the /v1/models endpoint
-    response = await client.get(
-        f"{base_url}/v1/models",
+    # Validate connectivity and auth by POSTing to the chat completions endpoint.
+    # OpenClaw's gateway doesn't implement /v1/models, so we send a minimal
+    # request to the endpoint the integration actually uses at runtime.
+    # A 401 means bad auth; a connection/timeout error means unreachable;
+    # any other response (including 400 for bad payload) means success.
+    response = await client.post(
+        f"{base_url}/v1/chat/completions",
         headers={
             "Authorization": f"Bearer {api_key}",
             "x-openclaw-agent-id": DEFAULT_AGENT_ID,
         },
+        json={"model": "openclaw", "messages": []},
         timeout=10.0,
     )
-    response.raise_for_status()
+    if response.status_code == 401:
+        response.raise_for_status()
 
 
 class OpenClawConversationConfigFlow(ConfigFlow, domain=DOMAIN):
